@@ -1,0 +1,244 @@
+#include <LiquidCrystal.h>
+#include <IRremote.h>
+
+int IRpin = 7;
+int led = 6; //pins of IR input and led
+
+int rs=13;
+int en=12;
+int d4=11;
+int d5=10;
+int d6=9;
+int d7=8;   //Declaring the pins of the arduino connected to the LCD display
+
+const int bin[2]={0b0,0b1};
+const int oct[8]={00,01,02,03,04,05,06,07}; 
+const int hex[16]={0x0,0x1,0x2,0x3,0x4,0x5,0x6,0x7,0x8,0x9,0xA,0XB,0XC,0XD,0XE,0XF};
+
+LiquidCrystal lcd(rs,en,d4,d5,d6,d7);  //Telling the arduino which pin is which(using variables instead of numbers);
+
+IRrecv IR(IRpin); //The IR reader will input the data through the IRpin
+decode_results cmd;  //The data will be stored in this variable from the remote
+
+int number[5];  //The different input digits will be stored in this array
+int i = 0;  //This will only be the counting variable
+int num;  //This will be the actual number
+
+  int binnum[15];
+  int hexnum[4];
+  int octnum[5];   //The results will be stored in these arrays
+
+int dt=750;  //This is the delay time in milliseconds
+
+void setup()
+{
+  lcd.begin(16,2);  //Turning the LCD ON
+  Serial.begin(15200);  //Turning the Serial Monitor ON
+ 
+  IR.enableIRIn();   //Turning the sensor named 'IR' ON
+  pinMode(led, OUTPUT);  
+  
+}
+
+void loop()
+{
+  start_of_program:
+  num=0;  //for each subsequent computation
+  
+  Serial.println("Press the power button to Start!");
+  lcd.setCursor(0,0);  //Setting the crusor position
+  lcd.print("Press Power");   //This will only be displayed once
+  lcd.setCursor(0,1);
+  lcd.print("Button");
+    while (IR.decode(&cmd) == 0)   //Taking the first input from the user
+    {
+        ;
+    }
+
+    IR.resume();
+
+   if (cmd.value == 0xfd00ff)  //Starting the input and computation of the number on pressing power button
+    {
+        digitalWrite(led, HIGH);  //Turning the led on to indicate the number being entered
+        
+	    Serial.println("Press the power button again after writing the number");
+        Serial.print("Enter the number from 0 to 16384:");
+     
+       
+        lcd.clear();
+        lcd.setCursor(0,0);  //Setting the crusor position
+        lcd.print("Enter a number:");  
+        lcd.setCursor(0,0);  //For displaying the number range
+
+        while (1)   //Loop for inputting the number
+        {
+            while (IR.decode(&cmd) == 0)
+            {
+                ;
+            }
+
+            IR.resume();   //Taking input from the user
+          
+          lcd.setCursor(0,0);
+          lcd.print("Power to finish:");  
+          lcd.setCursor(i,1);  //For displaying the number range
+
+            if (cmd.value == 0xfd00ff)  //When power key is pressed after entering the number
+            {
+                Serial.println();
+                Serial.println("Computation is starting");
+                lcd.clear();    //Clearing the lcd
+                lcd.setCursor(0,0);   
+                lcd.print("Computing");   //printing the message
+                digitalWrite(led, LOW); //indicating the number has been entered
+                delay(dt);  //To let the messsage on the lcd be displayed for some time
+                break;
+            }
+           
+            switch (cmd.value)
+            {
+                case 0xfd30cf:Serial.print("0");lcd.print("0"); number[i] = 0; i++;break;
+                case 0xfd08f7:Serial.print("1");lcd.print("1"); number[i] = 1; i++;break;
+                case 0xfd8877:Serial.print("2");lcd.print("2"); number[i] = 2; i++;break;
+                case 0xfd48b7:Serial.print("3");lcd.print("3"); number[i] = 3; i++;break;
+                case 0xfd28d7:Serial.print("4");lcd.print("4"); number[i] = 4; i++;break;
+                case 0xfda857:Serial.print("5");lcd.print("5"); number[i] = 5; i++;break;
+                case 0xfd6897:Serial.print("6");lcd.print("6"); number[i] = 6; i++;break;
+                case 0xfd18e7:Serial.print("7");lcd.print("7"); number[i] = 7; i++;break;
+                case 0xfd9867:Serial.print("8");lcd.print("8"); number[i] = 8; i++;break;
+                case 0xfd58a7:Serial.print("9");lcd.print("9"); number[i] = 9; i++;break;
+            }
+         
+        }  //This while loop will end if power key is pressed
+
+        if (i == 0)   //When power key is pressed twice
+        {
+            Serial.print("Enter a valid number");
+            Serial.println();
+            goto start_of_program;
+        }
+        for (int a=1 ;i> 0;i--)  //'a' will serve to turn the digits into a number
+        {
+            num = num +( number[i - 1] * a);
+            a *= 10;
+        }
+      
+    }  //The number has been read and stored in the variable num
+
+  if(num>16384)   //If number is beyound range
+  {
+    Serial.print("Please enter a number within the range:");
+    goto start_of_program;
+  }
+  lcd.clear();//Clearing the LCD before proceeding
+ 
+  int numbin=num;  //for calculations of the results
+  int numoct=num;
+  int numhex=num;
+  
+  //From here the binary number will be calculated and printed
+  int i=0;  
+  while(1)
+  {
+    
+    binnum[i]=numbin%2;
+    
+    i++;
+    if(numbin<2)
+      break;
+    
+    numbin=numbin/2;
+   
+  }
+ 
+  
+ lcd.clear();
+ lcd.setCursor(0,0);
+ lcd.print("The BIN number:");
+ Serial.print("The BIN number: ");
+ lcd.setCursor(0,1);
+  
+  for(;i>0;)
+  {
+  lcd.print(binnum[i-1],BIN);
+    Serial.print(binnum[i-1],BIN);
+    i--;
+  }
+  
+  Serial.println();
+  //The binary number has been calculated and printed
+  
+  
+  delay(dt); //puttiing a delay of 3seconds
+  
+  
+   //From here the octal number will be calculated and printed
+  i=0;
+  while(1)
+  {
+    octnum[i]=numoct%8;
+    
+    i++;
+    if(numoct<8)
+      break;
+    
+    numoct=numoct/8;
+   
+  }
+ 
+  
+ lcd.clear();
+ lcd.setCursor(0,0);
+ lcd.print("The OCT number:");
+ Serial.print("The OCT number: ");
+ lcd.setCursor(0,1);
+  
+  for(;i>0;)
+  {
+  lcd.print(octnum[i-1],OCT);
+    Serial.print(octnum[i-1],OCT);
+    i--;
+  }
+  
+  Serial.println();
+  //The octal number has been calculated and printed
+  
+  
+  delay(dt); //puttiing a delay of 3seconds
+  
+  
+   //From here the hexadecimal number will be calculated and printed
+  i=0;
+  for(int a;;)
+  {
+    a=numhex%16;
+    hexnum[i]=hex[a];
+    
+    i++;
+    if(numhex<16)
+      break;
+    
+    numhex=numhex/16;
+   
+  }
+ 
+  
+ lcd.clear();
+ lcd.setCursor(0,0);
+ lcd.print("The HEX number:");
+ Serial.print("The HEX number: ");
+ lcd.setCursor(0,1);
+  
+  for(;i>0;)
+  {
+    lcd.print(hexnum[i-1],HEX);
+    Serial.print(hexnum[i-1],HEX);
+    i--;
+  }
+  
+  Serial.println();
+  //The hexadecimal number has been calculated and printed
+  
+  delay(dt); //
+  lcd.clear(); //clearing our previous mess
+}
